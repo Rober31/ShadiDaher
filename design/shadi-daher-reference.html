@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shadi Daher build reference</title>
+<style>
+body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#14171c;background:#fff;max-width:980px;margin:0 auto;padding:32px 20px 80px}
+h1{font-size:28px;line-height:1.15;margin:0 0 6px}
+h2{font-size:20px;margin:40px 0 10px;padding-top:18px;border-top:1px solid #14171c}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:6px 0}
+ul,ol{margin:6px 0;padding-left:22px}
+table{border-collapse:collapse;width:100%;margin:8px 0 4px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:6px 12px 6px 0;border-bottom:1px solid #d0d7df}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#56606c}
+code{font:13px ui-monospace,Menlo,Consolas,monospace;background:#eef1f4;padding:1px 5px;border-radius:3px;overflow-wrap:anywhere}
+.note{color:#56606c}
+</style>
+</head>
+<body>
+<h1>Shadi Daher build reference</h1>
+<p class="note">Read this with the build prompt. Every word of copy and every number is here. Positions are measured from the seven design screenshots (1728 x 1117) and are given in vw and vh so they scale. Timings are measured from the film.</p>
+
+<h2>1. The film</h2>
+<ul><li>1920 x 814 pixels, so 2.359 to 1.</li><li>60 frames per second, 17.98 seconds, no sound.</li><li>Never scrub a video tag with scroll. Export an image sequence and draw it on a canvas.</li></ul>
+<p><b>Export the frames.</b></p>
+<p>Desktop: <code>ffmpeg -i film.mov -vf "fps=20,scale=1920:-2:flags=lanczos" -c:v libwebp -quality 80 public/frames/d/f_%04d.webp</code><br>About 360 frames, about 10 MB.</p>
+<p>Phone: <code>ffmpeg -i film.mov -vf "fps=15,scale=1080:-2:flags=lanczos" -c:v libwebp -quality 78 public/frames/m/f_%04d.webp</code><br>About 270 frames, about 3.5 MB.</p>
+
+<h2>2. Scroll</h2>
+<ul><li>One stage, 100vh tall, pinned for 1000vh of scroll.</li><li>The first 900vh play the film from the first frame to the last, at a constant rate.</li><li>The last 100vh hold the final frame, so the last button can be clicked.</li><li>The frame follows the scroll with ScrollTrigger scrub 1.2. No snapping.</li><li>Lenis for smooth scrolling, lerp about 0.09, driven by gsap.ticker and wired to ScrollTrigger.</li><li>One canvas, full viewport, white background, devicePixelRatio capped at 2. Redraw only when the frame or the framing changes.</li><li>Loading order: frame 1 first, then every 8th frame, then the rest, nearest to the current position first. If a frame is not ready, draw the nearest one that is.</li></ul>
+
+<h2>3. The stage: how the film is framed</h2>
+<p>The film is drawn from the top of the viewport. Its height changes from section to section, and so does the point of the film that sits at the centre of the viewport. At each film time below, the framing is exactly as listed. Before 0.7 s hold the first framing. Glide between the rest with sine.inOut.</p>
+<table class=""><thead><tr><th>Section</th><th>Film time</th><th>Film height</th><th>Film x at viewport centre</th><th>Top offset</th></tr></thead><tbody><tr><td>1 Hero</td><td>0.7 s</td><td>79vh</td><td>53%</td><td>4vh</td></tr><tr><td>2 Fabric</td><td>4.9 s</td><td>100vh</td><td>51%</td><td>0</td></tr><tr><td>3 Measure</td><td>6.5 s</td><td>100vh</td><td>53%</td><td>0</td></tr><tr><td>4 Trust</td><td>8.5 s</td><td>100vh</td><td>58%</td><td>0</td></tr><tr><td>5 Brands</td><td>10.1 s</td><td>71vh</td><td>55%</td><td>0</td></tr><tr><td>6 Numbers</td><td>14.0 s</td><td>83vh</td><td>45%</td><td>0</td></tr><tr><td>7 Next step</td><td>17.9 s</td><td>83vh</td><td>45%</td><td>0</td></tr></tbody></table>
+<ul><li>Drawn width = drawn height x 2.359.</li><li>The film must never be narrower than the viewport. If it would be, scale it up until it covers the width.</li><li>Clamp its position so it always reaches both side edges.</li><li>Layer order, back to front: film, white fade, text and cards, header.</li></ul>
+
+<h2>4. Gradients and colours</h2>
+<table class=""><thead><tr><th>Where</th><th>Value</th></tr></thead><tbody><tr><td>Film fade</td><td>A linear gradient over the film itself: transparent at 55% of the film's height, solid white (#fff) at its bottom edge. It moves and scales with the film.</td></tr><tr><td>Under the film</td><td>Solid white (#fff).</td></tr><tr><td>Hero top edge</td><td>Section 1 only. White at the film's top edge, fading to transparent over the next 8vh.</td></tr><tr><td>Text halo</td><td>Optional, only where thin type needs it: <code>radial-gradient(closest-side, rgba(255,255,255,.35), rgba(255,255,255,0))</code> behind the text block.</td></tr><tr><td>Button</td><td><code>linear-gradient(90deg, #222222, #636363)</code>, fully rounded, white label. On hover the gradient slides and the button lifts 1px in 0.3 s.</td></tr><tr><td>Brand card</td><td><code>linear-gradient(180deg, rgba(240,231,224,.92), rgba(255,255,255,0) 94%)</code>, 14px radius.</td></tr><tr><td>Number card</td><td><code>linear-gradient(180deg, rgba(238,228,221,.94), rgba(246,242,239,.42))</code>, 14px radius.</td></tr><tr><td>Text</td><td>#111111 on the film and on the page.</td></tr></tbody></table>
+
+<h2>5. Font</h2>
+<ul><li>Clash Display, variable, weights 200 to 700. Load it with @font-face from /public/fonts, preload it, font-display: swap.</li><li>Weights in use: 200 Extralight, 300 Light, 400 Regular, 500 Medium, 600 Semibold.</li><li>Headlines: letter-spacing -0.015em unless a line says otherwise.</li><li>Fallback stack: "Helvetica Neue", Helvetica, Arial, sans-serif.</li></ul>
+
+<h2>6. Logos</h2>
+<ul><li>logo-shadi-daher: the header wordmark, top left.</li><li>logo-alexander, logo-shahd-couture, logo-keep-it-casual, logo-sheikha, logo-pregofit: the five brand logos, used in section 5 and in the brands section under the film.</li><li>Use the supplied files as they are. Never redraw a logo and never type a logo as text. Give each one a real alt text.</li></ul>
+
+<h2>7. The seven sections over the film</h2>
+<p class="note">Positions are the top-left corner of each text block. Sizes are vw at a 1728px wide viewport. Clamp every size so no text falls below 14px. Headlines are capitals with no full stop. Body lines are sentence case with full stops.</p>
+
+<section>
+  <h3>Section 1. Hero</h3>
+  <p><b>Text on screen, film seconds:</b> 0.0 to 3.0 (on screen at load).</p>
+  <p><b>Position.</b> Block: left 60.6vw, top 19vh. Logo: left 4vw, top 4vh, 12.3vw wide. Menu button: right 4vw, top 4vh.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>FASHION</td><td>5vw</td><td>500 Medium</td><td>line-height 1, letter-spacing -0.02em</td></tr><tr><td>FROM FABRIC TO BRAND</td><td>2.5vw</td><td>400 Regular</td><td>line-height 1, directly under the first line</td></tr><tr><td>Shadi Daher makes women’s fashion in Turkey. For his own five brands, and for yours.</td><td>1.62vw</td><td>300 Light</td><td>line-height 1.25, max width 29vw, 0.9vw below the headline</td></tr><tr><td>Work with Shadi</td><td>1.16vw</td><td>500 Medium</td><td>button: pill 2.55vw tall, 1.25vw side padding, 2vw below the text</td></tr><tr><td>See the brands</td><td>0.98vw</td><td>400 Regular</td><td>text link, 1.5vw to the right of the button</td></tr></tbody></table>
+  
+</section>
+<section>
+  <h3>Section 2. Fabric</h3>
+  <p><b>Text on screen, film seconds:</b> 4.2 to 5.4.</p><p><b>Why this timing.</b> Not earlier. Until the veil passes, the black jacket is under this spot.</p>
+  <p><b>Position.</b> Block: left 9.5vw, top 61vh.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>IT STARTS</td><td>4.34vw</td><td>400 Regular</td><td>line-height 1.21</td></tr><tr><td>WITH FABRIC</td><td>4.34vw</td><td>400 Regular, with FABRIC in 600 Semibold</td><td>second line of the headline</td></tr><tr><td>Chosen at the source. Bought direct from the factory.</td><td>2.45vw</td><td>300 Light</td><td>line-height 1.24, max width 33vw</td></tr></tbody></table>
+  
+</section>
+<section>
+  <h3>Section 3. Measure</h3>
+  <p><b>Text on screen, film seconds:</b> 5.8 to 7.1.</p>
+  <p><b>Position.</b> Block: left 61.5vw, top 18vh.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>MADE TO MEASURE</td><td>2.85vw</td><td>600 Semibold</td><td>line-height 1</td></tr><tr><td>Custom tailoring for suits, daily wear and maternity.</td><td>2.3vw</td><td>300 Light</td><td>line-height 1.22, max width 27.5vw</td></tr></tbody></table>
+  
+</section>
+<section>
+  <h3>Section 4. Trust</h3>
+  <p><b>Text on screen, film seconds:</b> 7.5 to 9.1.</p><p><b>Why this timing.</b> It must be gone by 9.3 s, when the model moves under this spot.</p>
+  <p><b>Position.</b> Block: left 64.2vw, top 20vh.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>BUILT ON TRUST</td><td>3.1vw</td><td>600 Semibold</td><td>line-height 1</td></tr><tr><td>Traders in the UAE and the US ask Shadi to run their orders in Turkey.</td><td>2.26vw</td><td>300 Light</td><td>line-height 1.2, max width 24.5vw</td></tr></tbody></table>
+  
+</section>
+<section>
+  <h3>Section 5. Brands</h3>
+  <p><b>Text on screen, film seconds:</b> 9.8 to 12.3.</p>
+  <p><b>Position.</b> Headline: left 66.8vw, top 12.7vh. Cards: one row from 8.5vw to 91.5vw, top at 77vh, five equal columns, 1.3vw apart.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>ONE HOUSE</td><td>4.9vw</td><td>200 Extralight</td><td>line-height 0.92, letter-spacing -0.03em</td></tr><tr><td>5 Brands</td><td>4.85vw</td><td>400 Regular</td><td>line-height 0.92</td></tr></tbody></table>
+  <p><b>Cards, in this order.</b> Each card: the logo (in a box 3.9vw tall), a 2px black rule 12vw wide, then the caption at 1vw Regular.</p><table class=""><thead><tr><th>Logo file</th><th>Caption</th></tr></thead><tbody><tr><td>logo-alexander</td><td>Formal dresses</td></tr><tr><td>logo-shahd-couture</td><td>Women’s suits</td></tr><tr><td>logo-keep-it-casual</td><td>Daily wear</td></tr><tr><td>logo-sheikha</td><td>Abayas and modest wear</td></tr><tr><td>logo-pregofit</td><td>Maternity wear</td></tr></tbody></table>
+</section>
+<section>
+  <h3>Section 6. Numbers</h3>
+  <p><b>Text on screen, film seconds:</b> 12.9 to 16.6.</p>
+  <p><b>Position.</b> Three cards stacked: left 69.9vw, top 11.4vh. Each 17.4vw wide and 12.6vw tall, 1.6vw apart, 2.66vw left padding.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>12 / 40+ / 71K</td><td>6.1vw</td><td>500 Medium</td><td>the number, line-height 1. Count up from zero in 1.4 s</td></tr><tr><td>Years in fashion / Collections sold / Orders shipped</td><td>2.5vw</td><td>400 Regular</td><td>the label, two lines, line-height 1.21</td></tr></tbody></table>
+  
+</section>
+<section>
+  <h3>Section 7. Next step</h3>
+  <p><b>Text on screen, film seconds:</b> 17.2 to the end, then the last frame holds.</p><p><b>Why this timing.</b> Not earlier. Until then her jacket is under this spot.</p>
+  <p><b>Position.</b> Block: left 55.7vw, top 29.4vh.</p>
+  <table class=""><thead><tr><th>Text</th><th>Size</th><th>Weight</th><th>Notes</th></tr></thead><tbody><tr><td>TAKE THE</td><td>3.55vw</td><td>400 Regular</td><td>line-height 1</td></tr><tr><td>NEXT STEP</td><td>3.7vw</td><td>500 Medium</td><td>line-height 1, letter-spacing -0.025em</td></tr><tr><td>A collection, a production run, or a whole brand. Start with a message.</td><td>1.9vw</td><td>400 Regular</td><td>line-height 1.23, max width 31vw, 0.85vw below the headline</td></tr><tr><td>Work with Shadi</td><td>1.16vw</td><td>500 Medium</td><td>button: pill 2.78vw tall, 1.7vw side padding, 1.65vw below the text</td></tr></tbody></table>
+  
+</section>
+
+<h2>8. Motion</h2>
+<ul><li>Text is not scrubbed. Each block plays a timed entrance when its window opens and a timed exit when it closes, in both scroll directions.</li><li>Open and close each window from the frame that is actually on screen (the smoothed value), not from raw scroll.</li><li>In: each line rises 24px from behind a mask, with rotateX from 35 degrees to 0 (perspective 800px, origin bottom), and fades in. 0.9 s, power3.out, lines 0.09 s apart. Body copy follows 0.15 s later with a fade and a 12px rise.</li><li>Out: fade and lift 12px. 0.5 s, power2.in.</li><li>Brand cards: rise 24px and fade, 0.08 s apart. Then the rule draws from the left, then the caption fades in.</li><li>Number cards: the same rise. The count takes 1.4 s, power2.out.</li><li>Nothing bounces, overshoots or snaps.</li></ul>
+
+<h2>9. Header and menu</h2>
+<ul><li>Logo top left. A three-line button top right, level with the logo.</li><li>The button opens a full-screen white panel that wipes down from the top in 0.7 s, expo.inOut.</li><li>Inside the panel: About, Brands, Contact, and the Work with Shadi button.</li><li>Links scroll smoothly to #about, #brands and #contact. Stop Lenis while the panel is open. Esc and a close button shut it. Keep focus inside it.</li></ul>
+
+<h2>10. The page under the film</h2>
+<p class="note">Six quiet sections in this order. White background, Clash Display headlines, generous spacing. Each one fades up 24px as it enters, once. Section ids: about, work, brands, how, turkey, contact.</p>
+<h3>1. About</h3><p>Three lines:</p><ul><li>Shadi Daher started out selling clothes.</li><li>Today he runs five brands under one house, Shahd Couture.</li><li>Now he sources, produces and tailors for other businesses.</li></ul><h3>2. Work with Shadi</h3><p><b>Headline:</b> Work with Shadi.</p><p><b>Subline:</b> Four ways to start.</p><table class=""><thead><tr><th>Offer</th><th>Line</th></tr></thead><tbody><tr><td>Sourcing in Turkey</td><td>Tell Shadi what you need. He finds the factory, agrees the price and follows the order.</td></tr><tr><td>Private label</td><td>Your name on the label. Shadi’s factory network behind it.</td></tr><tr><td>Wholesale collections</td><td>Ready collections from five brands, for your store.</td></tr><tr><td>Custom tailoring</td><td>Made-to-measure suits, daily wear and maternity wear for your clients.</td></tr></tbody></table><h3>3. The five brands</h3><p><b>Headline:</b> The five brands.</p><p>Show each brand with its logo.</p><table class=""><thead><tr><th>Brand</th><th>What it is</th><th>Tag</th><th>Tagline</th></tr></thead><tbody><tr><td>Alexander</td><td>Formal dresses</td><td></td><td>Make the moment yours.</td></tr><tr><td>Shahd Couture</td><td>Women’s suits</td><td>Custom tailoring</td><td>Your fit. Your presence.</td></tr><tr><td>Keep it Casual</td><td>Daily wear</td><td>Custom tailoring</td><td>Ease, every day.</td></tr><tr><td>Sheikha</td><td>Abayas and modest wear</td><td></td><td>Flow, with confidence.</td></tr><tr><td>PregOfit</td><td>Maternity wear</td><td>Custom tailoring</td><td>Room for change.</td></tr></tbody></table><h3>4. How it works</h3><p><b>Headline:</b> How it works.</p><ol><li>Brief. Tell Shadi what you need.</li><li>Sample. See the pieces. Approve the fit.</li><li>Deliver. Produced, checked and shipped.</li></ol><h3>5. Made in Turkey</h3><p><b>Headline:</b> Made with care in Turkey.</p><p><b>Text:</b> Shadi knows the factories, the fabrics and the prices.</p><h3>6. Let’s talk</h3><p><b>Headline:</b> Let’s talk.</p><p><b>Text:</b> A collection, a production run, or a partnership. One message is enough.</p><p><b>Button:</b> Message Shadi</p><p><b>Button:</b> Send a brief</p><p>Message Shadi opens WhatsApp. Send a brief opens the email.</p>
+
+<h2>11. Phone, under 768px wide</h2>
+<ul><li>Stage 100svh. The film is 62svh tall from the top, cropped to cover.</li><li>Point of the film at the centre of the screen, per section: 47, 44, 46, 55, 55, 45, 41 (% of the film's width).</li><li>The same white fade.</li><li>Every text block sits in the white area under the film, 6vw from the edges. Headlines clamp(28px, 8vw, 40px). Body 16px.</li><li>Brand cards in two rows, three and two. Numbers three in a row.</li><li>Use the phone frames. Pin for 800svh. Native touch scrolling, no Lenis smoothing on touch.</li><li>Set desktop and phone up separately with gsap.matchMedia.</li></ul>
+
+<h2>12. Page details</h2>
+<ul><li>Page title: Shadi Daher | Fashion, from fabric to brand</li><li>Description: Shadi Daher makes women's fashion in Turkey for his own five brands, and sources, produces and tailors for other businesses.</li><li>One h1: FASHION FROM FABRIC TO BRAND. The other six film headlines are h2.</li><li>The canvas is aria-hidden. Focus states are visible. Text passes AA contrast over the film.</li><li>Reduced motion: no pin, no Lenis, no canvas. Seven stacked sections, each with its still frame (the film times in the stage table) and its text.</li><li>Contact: the email link goes to hello@shadidaher.com. The WhatsApp number is not supplied yet, so leave a clearly marked placeholder and tell me.</li><li>Footer: the Shadi Daher logo, the three menu links, and the line (c) 2026 Shadi Daher.</li></ul>
+</body>
+</html>
