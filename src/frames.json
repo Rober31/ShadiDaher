@@ -1,0 +1,24 @@
+{
+  "desktop": {
+    "fps": 20,
+    "count": 359,
+    "tiers": [
+      {
+        "dir": "d",
+        "width": 1920,
+        "height": 814
+      }
+    ]
+  },
+  "phone": {
+    "fps": 15,
+    "count": 270,
+    "tiers": [
+      {
+        "dir": "m",
+        "width": 1440,
+        "height": 610
+      }
+    ]
+  }
+}

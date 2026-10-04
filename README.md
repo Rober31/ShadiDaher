@@ -22,6 +22,25 @@ To export the frames again from `design/film.mov` (needs ffmpeg on the PATH, or 
 npm run frames
 ```
 
+### From an AI-enhanced master
+
+The site can serve sharper frame tiers (desktop 2880 and 3840 wide, phone 2560 wide) when there is a
+source wider than the original 1920 x 814 film. Make that source with a temporally consistent AI video
+upscaler (for example Magnific Precision or Topaz, both limited to 3840 wide), then:
+
+```bash
+node scripts/frames.mjs --source path/to/upscaled-3840.mov --master ../shadi-daher-master
+```
+
+- `--master` writes the 8K master frames (7680 x 3256, 20 fps, lossless WebP, about 1.1 GB) outside the
+  repository. Above 3840 they are an ordinary Lanczos resize of the AI output, not AI detail.
+- Every web tier is made straight from `--source`, and `src/frames.json` lists the tiers that exist.
+- Tiers wider than the source are never made from the original film: enlarging adds bytes, not detail.
+
+The page picks the smallest tier that covers the widest the film is drawn on that screen (device pixels,
+pixel ratio capped at 2). Tiers above 2880 are only used on devices with 8 or more cores, because they decode
+too slowly for a fast scroll on fewer. `?frames=d3840` (or any tier folder) forces a tier for testing.
+
 ## Before going live
 
 - **WhatsApp number.** “Message Shadi” links to `https://wa.me/WHATSAPP_NUMBER`. Replace
@@ -40,7 +59,8 @@ npm run frames
 | `src/sections.js` | Timed entrances and exits of the seven film sections, and the fade-ups under the film. |
 | `src/menu.js` | The full-screen menu: wipe, focus trap, Esc, jump while covered. |
 | `src/styles.css` | Layout and type, measured from the designs at 1728 x 1117; phone and still layouts. |
-| `public/frames/d`, `public/frames/m` | 359 desktop frames (1920 wide, 20 fps, WebP q95) and 270 phone frames (1440 wide, 15 fps, WebP q92). |
+| `public/frames/d`, `public/frames/m` | 359 desktop frames (1920 wide, 20 fps, WebP q95) and 270 phone frames (1440 wide, 15 fps, WebP q92). Wider tiers sit beside them when an enhanced master exists. |
+| `src/frames.json` | The frame tiers that exist, written by `scripts/frames.mjs`. |
 | `design/` | The film, the build reference, the design sheet, the seven designs rendered to PNG, the font sources. |
 
 **Stage.** The film section is 1100vh tall (900svh on phones) with a 100vh sticky stage inside, so it
@@ -48,7 +68,8 @@ stays pinned for 1000vh (800svh). A ScrollTrigger timeline with `scrub: 1.2` pla
 first 900vh at a constant rate and holds the last frame for the final 100vh.
 
 **Frames.** Frame 1 loads first, then every 8th frame, then the rest, nearest to the playhead first.
-Encoded frames stay in memory; only about a dozen frames around the playhead are decoded
+Encoded frames stay in memory; only a window around the playhead is decoded, sized from a memory budget
+(320 MB desktop, 140 MB phone: 10 ahead and 4 behind with the current frames, fewer with wider tiers)
 (`createImageBitmap`, off the main thread). A missing frame is replaced by the nearest decoded one, so
 the canvas never goes blank.
 

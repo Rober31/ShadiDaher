@@ -1,20 +1,41 @@
 import { gsap } from 'gsap'
+import FRAMES from './frames.json' // written by scripts/frames.mjs
 
 const ASPECT = 1920 / 814
 export const DURATION = 17.98 // seconds of film
 
-// Desktop and phone frame sets, as exported by scripts/frames.mjs.
-const SETS = {
-  desktop: { dir: 'd', fps: 20, count: 359, screens: 10 },
-  phone: { dir: 'm', fps: 15, count: 270, screens: 8 },
+// Pinned scroll length per set, in screens (the last screen holds the final frame).
+const SCREENS = { desktop: 10, phone: 8 }
+
+// Decoded frames are large (width x height x 4 bytes), so the decode window comes from a memory budget.
+// With the 1920 / 1440 frames it works out to 10 ahead, 4 behind; with 4K-class frames it shrinks.
+const BUDGET = { desktop: 320e6, phone: 140e6 }
+
+function windowFor(kind, tier) {
+  const bytes = tier.width * tier.height * 4
+  const frames = Math.max(8, Math.min(25, Math.floor(BUDGET[kind] / bytes)))
+  const ahead = Math.min(10, Math.round((frames - 1) * 0.7))
+  const behind = Math.min(4, frames - 1 - ahead)
+  // Large frames are slow to decode, so use more parallel decoders where there are cores for them.
+  const decoders = bytes > 12e6 ? Math.max(2, Math.min(4, CORES - 1)) : 3
+  return { ahead, behind, keep: ahead + 2, cap: frames, decoders }
 }
 
-const AHEAD = 10 // decoded frames kept ahead of the playhead
-const BEHIND = 4 // and behind it
-const KEEP = AHEAD + 2 // anything further away is released
+const CORES = navigator.hardwareConcurrency || 4
 
-// Encoded frames stay in memory (about 27 MB desktop, 11 MB phone); only a small window around the playhead is decoded.
-function createFrames({ count, src }) {
+// The smallest tier that covers the widest the film is ever drawn on this screen (device pixels).
+// Frames wider than 2880 decode too slowly for a fast scroll on fewer than 8 cores, so they are
+// kept for machines that can keep up. ?frames=<dir> forces a tier, for testing.
+function pickTier(kind, needed) {
+  const forced = FRAMES[kind].tiers.find((t) => t.dir === new URLSearchParams(location.search).get('frames'))
+  if (forced) return forced
+  const tiers = FRAMES[kind].tiers.filter((t, i) => i === 0 || t.width <= 2880 || CORES >= 8)
+  return tiers.find((t) => t.width >= needed * 0.9) || tiers[tiers.length - 1]
+}
+
+// Encoded frames stay in memory; only a small window around the playhead is decoded.
+function createFrames({ count, src, standby, win }) {
+  const { ahead: AHEAD, behind: BEHIND, keep: KEEP, cap: CAP, decoders: DECODERS } = win
   const blobs = new Array(count)
   const status = new Uint8Array(count) // 0 waiting, 1 loading, 2 loaded, 3 failed
   const bitmaps = new Map()
@@ -25,6 +46,7 @@ function createFrames({ count, src }) {
   let fetching = 0
   let maxFetching = 1 // the first frame loads alone
   let shown = null
+  let spare = null // the preloaded base-tier first frame, shown until this tier's own frames decode
 
   const decode = async (blob) => {
     if (window.createImageBitmap) {
@@ -66,20 +88,38 @@ function createFrames({ count, src }) {
   }
 
   function pumpDecode() {
-    for (let k = 0; k <= AHEAD + BEHIND && decoding.size < 3; k++) {
+    for (let k = 0; k <= AHEAD + BEHIND && decoding.size < DECODERS; k++) {
       const i = k <= AHEAD ? target + k * dir : target - (k - AHEAD) * dir
       if (i < 0 || i >= count || !blobs[i] || bitmaps.has(i) || decoding.has(i)) continue
       decoding.add(i)
       decode(blobs[i])
         .then((bmp) => {
           if (abort.signal.aborted || Math.abs(i - target) > KEEP) bmp.close?.()
-          else bitmaps.set(i, bmp)
+          else { bitmaps.set(i, bmp); trim() }
         })
         .catch(() => {})
         .finally(() => { decoding.delete(i); if (!abort.signal.aborted) pumpDecode() })
     }
   }
 
+  // Hard cap on decoded frames: release the ones farthest from the playhead (never the one on screen).
+  function trim() {
+    while (bitmaps.size > CAP) {
+      let far = -1
+      for (const [j, bmp] of bitmaps) if (bmp !== shown && (far < 0 || Math.abs(j - target) > Math.abs(far - target))) far = j
+      if (far < 0) return
+      bitmaps.get(far).close?.()
+      bitmaps.delete(far)
+    }
+  }
+
+  if (standby) {
+    fetch(standby, { signal: abort.signal })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(res.status)))
+      .then(decode)
+      .then((img) => { if (abort.signal.aborted) img.close?.(); else spare = img })
+      .catch(() => {})
+  }
   pumpFetch()
 
   return {
@@ -99,12 +139,16 @@ function createFrames({ count, src }) {
         const b = bitmaps.get(i - d * dir) || bitmaps.get(i + d * dir)
         if (b) return b
       }
-      return shown
+      return shown || spare
     },
-    shown(bmp) { shown = bmp },
+    shown(bmp) {
+      shown = bmp
+      if (spare && bmp !== spare) { spare.close?.(); spare = null }
+    },
     destroy() {
       abort.abort()
       bitmaps.forEach((bmp) => bmp.close?.())
+      spare?.close?.()
       bitmaps.clear()
     },
   }
@@ -133,14 +177,23 @@ function framingAt(keys, t) {
 }
 
 export function createFilm({ track, stage, canvas, scenes, kind }) {
-  const set = SETS[kind]
+  const set = { ...FRAMES[kind], screens: SCREENS[kind] }
   const keys = readKeys(scenes)
   const state = { t: 0 }
   const ctx = canvas.getContext('2d', { alpha: false })
+  const url = (dir, i) => `${import.meta.env.BASE_URL}frames/${dir}/f_${String(i + 1).padStart(4, '0')}.webp`
+  // Widest the film is drawn here: its tallest framing, or the full width, in device pixels.
+  const tallest = Math.max(...keys.map((k) => k.fh))
+  const needed = Math.max(stage.clientWidth, tallest * stage.clientHeight * ASPECT) * Math.min(window.devicePixelRatio || 1, 2)
+  const tier = pickTier(kind, needed)
+  const base = set.tiers[0]
   const frames = createFrames({
     count: set.count,
-    src: (i) => `${import.meta.env.BASE_URL}frames/${set.dir}/f_${String(i + 1).padStart(4, '0')}.webp`,
+    src: (i) => url(tier.dir, i),
+    standby: tier === base ? null : url(base.dir, 0),
+    win: windowFor(kind, tier),
   })
+  stage.dataset.frames = tier.dir // which tier is playing, for testing
   let width = 0
   let height = 0
   let dpr = 1
