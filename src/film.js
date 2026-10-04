@@ -13,7 +13,7 @@ const AHEAD = 10 // decoded frames kept ahead of the playhead
 const BEHIND = 4 // and behind it
 const KEEP = AHEAD + 2 // anything further away is released
 
-// Encoded frames stay in memory (about 10 MB); only a small window around the playhead is decoded.
+// Encoded frames stay in memory (about 27 MB desktop, 11 MB phone); only a small window around the playhead is decoded.
 function createFrames({ count, src }) {
   const blobs = new Array(count)
   const status = new Uint8Array(count) // 0 waiting, 1 loading, 2 loaded, 3 failed
@@ -197,15 +197,24 @@ export function createFilm({ track, stage, canvas, scenes, kind }) {
     if (resolveReady) { resolveReady(); resolveReady = null; stage.classList.add('is-ready') }
   }
 
+  // Backing store = CSS size x devicePixelRatio (capped at 2). Resizing resets the context,
+  // so smoothing is set again every time.
+  let dprQuery = null
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2)
     width = stage.clientWidth
     height = stage.clientHeight
     canvas.width = Math.round(width * dpr)
     canvas.height = Math.round(height * dpr)
+    ctx.imageSmoothingEnabled = true
+    if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high'
+    // A move to a screen with another pixel ratio does not change the CSS size, so watch it too.
+    dprQuery?.removeEventListener('change', resize)
+    dprQuery = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+    dprQuery.addEventListener('change', resize)
     render(true)
   }
-  const observer = new ResizeObserver(resize)
+  const observer = new ResizeObserver(() => resize())
   observer.observe(stage)
   resize()
 
@@ -229,6 +238,7 @@ export function createFilm({ track, stage, canvas, scenes, kind }) {
     destroy() {
       gsap.ticker.remove(render)
       observer.disconnect()
+      dprQuery?.removeEventListener('change', resize)
       frames.destroy()
       stage.classList.remove('is-ready')
     },

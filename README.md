@@ -40,7 +40,7 @@ npm run frames
 | `src/sections.js` | Timed entrances and exits of the seven film sections, and the fade-ups under the film. |
 | `src/menu.js` | The full-screen menu: wipe, focus trap, Esc, jump while covered. |
 | `src/styles.css` | Layout and type, measured from the designs at 1728 x 1117; phone and still layouts. |
-| `public/frames/d`, `public/frames/m` | 359 desktop frames (1920 wide, 20 fps) and 270 phone frames (1080 wide, 15 fps). |
+| `public/frames/d`, `public/frames/m` | 359 desktop frames (1920 wide, 20 fps, WebP q95) and 270 phone frames (1440 wide, 15 fps, WebP q92). |
 | `design/` | The film, the build reference, the design sheet, the seven designs rendered to PNG, the font sources. |
 
 **Stage.** The film section is 1100vh tall (900svh on phones) with a 100vh sticky stage inside, so it
