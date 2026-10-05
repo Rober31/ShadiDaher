@@ -156,6 +156,8 @@ def render_shot(i, sh, fps, clips, tmp):
         D = n / fps
         z0, z1 = sh.get('z0', 1.0), sh.get('z1', 1.02)
         img = os.path.join(clips, sh['src'] + '.png')
+        if not os.path.exists(img):   # fall back to the first frame of the clip that was animated from this still
+            run(['ffmpeg', '-y', '-v', 'error', '-i', os.path.join(clips, sh['src'] + '.mp4'), '-frames:v', '1', img])
         vf = (f"fps={fps},scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase:flags=lanczos,"
               f"crop={W * 2}:{H * 2},"
               f"scale=w='trunc({W * 2}*({z0}+({z1}-{z0})*t/{D})/2)*2':h='trunc({H * 2}*({z0}+({z1}-{z0})*t/{D})/2)*2'"

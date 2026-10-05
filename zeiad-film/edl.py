@@ -52,7 +52,7 @@ SHOTS = [
     dict(t0=37.50, t1=38.55, src='iGIMIFz3uK', mode='play', src_in=0.4, grade='modern'),               # K1a modern, other angle (before cuff at 3.2 s)
     dict(t0=38.55, t1=39.53, src='WDQtQlbcXe', mode='play', src_in=0.2, grade='vintage'),              # K4a vintage, other angle (before 2.0 s warp)
     # ---------- 39.53–45.15  WHERE PEOPLE GET IT WRONG -----------------------------------
-    dict(t0=39.53, t1=40.85, src='6A8VIyJiJO', mode='still', z0=1.00, z1=1.025, grade='vintage'),     # pattern interrupt: held macro, crown
+    dict(t0=39.53, t1=40.85, src='79MGImlJAL', mode='still', z0=1.00, z1=1.025, grade='vintage'),     # pattern interrupt: held macro, crown
     dict(t0=40.85, t1=41.58, src='vQwrirna47', mode='play', src_in=0.8, grade='modern'),               # inspection: case edge + crown
     dict(t0=41.58, t1=42.75, src='ovLqy5O829', mode='play', src_in=0.6, grade='vintage'),              # leather stitching + buckle — cut hides the music splice
     dict(t0=42.75, t1=43.60, src='mESkD6zhJQ', mode='play', src_in=1.0, grade='vintage'),              # crystal / dial inspection on the 42.75 hit (vintage push, clean before 2.5 s)
