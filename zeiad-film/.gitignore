@@ -1,0 +1,9 @@
+clips/
+build/
+out/
+sfx/
+testclips/
+*.wav
+*.mp3
+manifest.json
+__pycache__/
